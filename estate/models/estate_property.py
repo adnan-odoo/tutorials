@@ -1,5 +1,5 @@
 from datetime import timedelta
-from odoo import fields, models
+from odoo import api, fields, models
 
 
 class EstateProperty(models.Model):
@@ -33,3 +33,33 @@ class EstateProperty(models.Model):
     buyer_id = fields.Many2one("res.partner", string="Buyer", copy=False)
     tag_ids = fields.Many2many("estate.property.tag", string="Tags")
     offer_ids = fields.One2many("estate.property.offer", 'property_id', string="Offers")
+    total_area = fields.Float(compute='_compute_total_area')
+    best_offer = fields.Char(string="Best Offer", compute='_compute_best_offer')
+
+    @api.depends('living_area', 'garden_area')
+    def _compute_total_area(self):
+        self.total_area = self.living_area + self.garden_area
+
+    @api.depends('offer_ids')
+    def _compute_best_offer(self):
+        best_offer = None
+        for offer in self.offer_ids:
+            if best_offer is None:
+                best_offer = offer
+            elif best_offer.price < offer.price:
+                best_offer = offer
+
+        if not best_offer:
+            self.best_offer = 'No offer yet'
+        else:
+            self.best_offer = f'{best_offer.price} by {best_offer.partner_id.name}'
+
+    @api.onchange('garden')
+    def _onchange_garden(self):
+        for record in self:
+            if record.garden:
+                record.garden_area = 10
+                record.garden_orientation = 'north'
+            else:
+                record.garden_area = 0
+                record.garden_orientation = ''
