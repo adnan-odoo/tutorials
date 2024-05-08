@@ -77,7 +77,7 @@
                                         <field name="partner_id" string="Partner"/>
                                         <field name="validity"/>
                                         <field name="date_deadline"/>
-                                        <button name="action_set_state" type="object" context="{'accepted': True}" icon="fa-check"/>
+                                        <button name="action_set_state" type="object" context="{'accepted': True}" icon="fa-check" title="Set State"/>
                                         <button class="text-danger" name="action_set_state" type="object" context="{'accepted': False}" icon="fa-times"/>
                                         <field name="status"/>
                                     </tree>

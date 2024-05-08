@@ -1,5 +1,6 @@
 from datetime import timedelta
 from odoo import api, fields, models, exceptions
+from odoo.tools.float_utils import float_compare, float_is_zero
 
 
 class EstateProperty(models.Model):
@@ -37,6 +38,12 @@ class EstateProperty(models.Model):
     total_area = fields.Float(compute='_compute_total_area')
     best_offer = fields.Char(string="Best Offer", compute='_compute_best_offer')
 
+    _sql_constraints = [
+        ('expected_price_gte_zero', 'CHECK(expected_price >= 0)',
+         'Expected Price should be greater than or equal to zero'),
+        ('selling_price_gte_zero', 'CHECK(selling_price >= 0)', 'Selling Price should be greater than or equal to zero')
+    ]
+
     @api.depends('living_area', 'garden_area')
     def _compute_total_area(self):
         self.total_area = self.living_area + self.garden_area
@@ -72,3 +79,12 @@ class EstateProperty(models.Model):
             state = record.env.context.get('state')
             record.state = state
         return True
+
+    @api.constrains('selling_price', 'expected_price')
+    def _check_selling_price(self):
+        for record in self:
+            if float_is_zero(record.selling_price, 3):
+                return True
+            acceptance_price = record.expected_price * (0.9)
+            if float_compare(record.selling_price, acceptance_price, 0) == -1:
+                raise exceptions.ValidationError('Selling price must be minimum 90% of acceptable price')
