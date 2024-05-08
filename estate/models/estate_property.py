@@ -1,5 +1,5 @@
 from datetime import timedelta
-from odoo import api, fields, models
+from odoo import api, fields, models, exceptions
 
 
 class EstateProperty(models.Model):
@@ -28,9 +28,10 @@ class EstateProperty(models.Model):
         default='new',
         selection=[('new', 'New'), ('offer_received', 'Offer Received'), ('offer_accepted', 'Offer Accepted'),
                    ('sold', 'Sold'), ('cancelled', 'Cancelled')],
+        readonly=True
     )
     salesman_id = fields.Many2one("res.users", string="Salesman", default=lambda self: self.env.user)
-    buyer_id = fields.Many2one("res.partner", string="Buyer", copy=False)
+    buyer_id = fields.Many2one("res.partner", string="Buyer", copy=False, )
     tag_ids = fields.Many2many("estate.property.tag", string="Tags")
     offer_ids = fields.One2many("estate.property.offer", 'property_id', string="Offers")
     total_area = fields.Float(compute='_compute_total_area')
@@ -63,3 +64,11 @@ class EstateProperty(models.Model):
             else:
                 record.garden_area = 0
                 record.garden_orientation = ''
+
+    def action_set_state(self):
+        for record in self:
+            if record.state == 'cancelled':
+                raise exceptions.UserError('Property already cancelled')
+            state = record.env.context.get('state')
+            record.state = state
+        return True

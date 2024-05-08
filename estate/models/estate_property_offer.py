@@ -1,6 +1,6 @@
 from datetime import date, timedelta
 
-from odoo import fields, models, api
+from odoo import fields, models, api, exceptions
 
 
 class EstatePropertyOffer(models.Model):
@@ -11,6 +11,7 @@ class EstatePropertyOffer(models.Model):
     status = fields.Selection(
         copy=False,
         selection=[('accepted', 'Accepted'), ('refused', 'Refused')],
+        readonly=True
     )
     partner_id = fields.Many2one('res.partner', string='Partner')
     property_id = fields.Many2one('estate.property', string='Property')
@@ -30,3 +31,20 @@ class EstatePropertyOffer(models.Model):
     def _inverse_validity(self):
         for record in self:
             self.date_deadline = record.create_date + timedelta(days=record.validity)
+
+    def action_set_state(self):
+        for record in self:
+            has_accepted = record.env.context.get('accepted')
+            if has_accepted:
+                for offer in record.property_id.offer_ids:
+                    if offer.status == 'accepted':
+                        raise exceptions.UserError("Another offer already accepted, cancel it first")
+                record.property_id.buyer_id = record.partner_id
+                record.property_id.selling_price = record.price
+                record.status = 'accepted'
+            else:
+                record.status = 'refused'
+                record.property_id.buyer_id = None
+                record.property_id.selling_price = None
+
+        return True
