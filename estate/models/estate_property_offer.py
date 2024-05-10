@@ -55,3 +55,16 @@ class EstatePropertyOffer(models.Model):
                 record.property_id.selling_price = None
 
         return True
+
+    @api.model_create_multi
+    def create(self, vals):
+        for record in vals:
+            _property = self.env['estate.property'].browse(record['property_id'])
+            print(record['price'], _property.best_offer_price)
+            if record['price'] < _property.best_offer_price:
+                raise exceptions.UserError(f'Minimum offer has to be {_property.best_offer_price + 1}')
+
+            if _property.state == 'new':
+                _property.state = 'offer_received'
+
+        return super().create(vals)

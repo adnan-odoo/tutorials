@@ -38,6 +38,7 @@ class EstateProperty(models.Model):
     offer_ids = fields.One2many("estate.property.offer", 'property_id', string="Offers")
     total_area = fields.Float(compute='_compute_total_area')
     best_offer = fields.Char(string="Best Offer", compute='_compute_best_offer')
+    best_offer_price = fields.Integer(default=0)
 
     _sql_constraints = [
         ('expected_price_gte_zero', 'CHECK(expected_price >= 0)',
@@ -61,7 +62,8 @@ class EstateProperty(models.Model):
         if not best_offer:
             self.best_offer = 'No offer yet'
         else:
-            self.best_offer = f'{best_offer.price} by {best_offer.partner_id.name}'
+            self.best_offer = f'{best_offer.price}' + (f' by {best_offer.partner_id.name}' if best_offer.partner_id else '')
+            self.best_offer_price = best_offer.price
 
     @api.onchange('garden')
     def _onchange_garden(self):
@@ -89,3 +91,9 @@ class EstateProperty(models.Model):
             acceptance_price = record.expected_price * (0.9)
             if float_compare(record.selling_price, acceptance_price, 0) == -1:
                 raise exceptions.ValidationError('Selling price must be minimum 90% of acceptable price')
+
+    @api.ondelete(at_uninstall=False)
+    def _unlink_if_new_or_cancelled(self):
+        for record in self:
+            if record.state not in ['new', 'cancelled']:
+                raise exceptions.UserError('Cannot delete property that are not in "New" or "Cancelled"')
